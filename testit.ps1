@@ -4,6 +4,6 @@ Import-Module $PSScriptRoot\MidFredPcCollection -Force
 # 
 # $PingResult
 
-Test-MfPcConnection -ComputerName @("freddie") | #, "molehill", "nopcbythisname") |
+Test-MfPcConnection -ComputerName @("freddie", "molehill") | #, "nopcbythisname") |
     # Get-MfPcNbtName
     Get-MfPcNbtStat

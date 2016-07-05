@@ -23,6 +23,7 @@ $Win32PingStatusCodes = @{
     11050 = "General Failure"
 }
 
+# Pipe or pass an array/stream of ComputerName strings, this will ping them and return objects intended for further processing
 function Test-MfPcConnection {
     param (
         [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
@@ -34,12 +35,15 @@ function Test-MfPcConnection {
             ComputerName = $_
             IpAddress = $Ping.ProtocolAddress
             PingStatusCode = [int]$Ping.StatusCode
+            # NOTE: .StatusCode is [uint32], so casting it to [int] above and below for ease of reuse
             PingResult = if ($Ping.StatusCode -eq $null) { "DNS name not found" } else { $Win32PingStatusCodes[[int]$Ping.StatusCode] }
             PingTime = $Ping.ResponseTime
         })
     }
 }
 
+# Pipe the results of Test-MfPcConnection into this to get name from target to ensure it's the machine you want
+# This version uses nbtstat.exe and parses the text output; unsure if it works via IPv6
 filter Get-MfPcNbtStat {
     process {
         if ($_.PingStatusCode -eq 0) {
@@ -57,6 +61,9 @@ filter Get-MfPcNbtStat {
     }
 }
 
+# Pipe the results of Test-MfPcConnection into this to get name from target to ensure it's the machine you want
+# This version I'm attempting to use CIM classes, but this may not turn out to be sensible because
+#   if the name doesn't match, the CIM session probably will fail, anyway
 filter Get-MfPcNbtName {
     process {
         if ($_.PingStatusCode -eq 0) {

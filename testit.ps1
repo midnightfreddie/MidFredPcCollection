@@ -1,3 +1,5 @@
 Import-Module $PSScriptRoot\MidFredPcCollection -Force
 
-Test-MfPcConnection -ComputerName @("molehill", "lenny", "winvr", "crookshanks")
+$PingResult = Test-MfPcConnection -ComputerName @("molehill", "lenny", "winvr", "crookshanks", "nopcbythisname")
+
+$PingResult

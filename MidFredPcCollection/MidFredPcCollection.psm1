@@ -33,9 +33,42 @@ function Test-MfPcConnection {
         New-Object psobject -Property ([ordered]@{
             ComputerName = $_
             IpAddress = $Ping.ProtocolAddress
-            PingStatusCode = $Ping.StatusCode
+            PingStatusCode = [int]$Ping.StatusCode
             PingResult = if ($Ping.StatusCode -eq $null) { "DNS name not found" } else { $Win32PingStatusCodes[$Ping.StatusCode] }
             PingTime = $Ping.ResponseTime
         })
+    }
+}
+
+filter Get-MfPcNbtStat {
+    process {
+        if ($_.PingStatusCode -eq 0) {
+            $NbtstatName = (
+                & nbtstat -a $_.ComputerName |
+                Select-String "<00>  UNIQUE" |
+                Select-Object -First 1
+            ).ToString().Split('<')[0].Trim()
+
+        } else {
+            $NbtstatName = $null
+        }
+        $_ | Add-Member -MemberType NoteProperty -Name "NetBiosName" -Value $NbtstatName
+        Write-Output $_
+    }
+}
+
+filter Get-MfPcNbtName {
+    process {
+        if ($_.PingStatusCode -eq 0) {
+            $CimSystem = Get-CimInstance -ClassName CIM_System -ComputerName $_.ComputerName
+        } else {
+            $CimSystem = $null
+        }
+        $_ | Add-Member -MemberType NoteProperty -Name "NetBiosName" -Value $CimSystem.Name
+        $_ | Add-Member -MemberType NoteProperty -Name "AdDomain" -Value $CimSystem.Domain
+        $_ | Add-Member -MemberType NoteProperty -Name "Memory" -Value $CimSystem.TotalPhysicalMemory
+        $_ | Add-Member -MemberType NoteProperty -Name "Model" -Value $CimSystem.Model
+        $_ | Add-Member -MemberType NoteProperty -Name "Manufacturer" -Value $CimSystem.Manufacturer
+        Write-Output $_
     }
 }

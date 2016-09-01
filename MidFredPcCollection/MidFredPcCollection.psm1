@@ -66,22 +66,3 @@ filter Get-MfPcNbtStat {
         Write-Output $_
     }
 }
-
-# Pipe the results of Test-MfPcConnection into this to get name from target to ensure it's the machine you want
-# This version I'm attempting to use CIM classes, but this may not turn out to be sensible because
-#   if the name doesn't match, the CIM session probably will fail, anyway
-filter Get-MfPcNbtName {
-    process {
-        if ($_.PingStatusCode -eq 0) {
-            $CimSystem = Get-CimInstance -ClassName CIM_System -ComputerName $_.ComputerName
-        } else {
-            $CimSystem = $null
-        }
-        $_ | Add-Member -MemberType NoteProperty -Name "NetBiosName" -Value $CimSystem.Name
-        $_ | Add-Member -MemberType NoteProperty -Name "AdDomain" -Value $CimSystem.Domain
-        $_ | Add-Member -MemberType NoteProperty -Name "Memory" -Value $CimSystem.TotalPhysicalMemory
-        $_ | Add-Member -MemberType NoteProperty -Name "Model" -Value $CimSystem.Model
-        $_ | Add-Member -MemberType NoteProperty -Name "Manufacturer" -Value $CimSystem.Manufacturer
-        Write-Output $_
-    }
-}

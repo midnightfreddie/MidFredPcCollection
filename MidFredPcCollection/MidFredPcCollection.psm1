@@ -29,16 +29,18 @@ function Test-MfPcConnection {
         [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
         [string[]]$ComputerName
     )
-    $ComputerName | ForEach-Object {
-        $Ping = Get-CimInstance -ClassName Win32_PingStatus -Filter "Address='$_'"
-        New-Object psobject -Property ([ordered]@{
-            ComputerName = $_
-            IpAddress = $Ping.ProtocolAddress
-            PingStatusCode = [int]$Ping.StatusCode
-            # NOTE: .StatusCode is [uint32], so casting it to [int] above and below for ease of reuse
-            PingResult = if ($Ping.StatusCode -eq $null) { "DNS name not found" } else { $Win32PingStatusCodes[[int]$Ping.StatusCode] }
-            PingTime = $Ping.ResponseTime
-        })
+process {
+        $ComputerName | ForEach-Object {
+            $Ping = Get-CimInstance -ClassName Win32_PingStatus -Filter "Address='$_'"
+            New-Object psobject -Property ([ordered]@{
+                ComputerName = $_
+                IpAddress = $Ping.ProtocolAddress
+                PingStatusCode = [int]$Ping.StatusCode
+                # NOTE: .StatusCode is [uint32], so casting it to [int] above and below for ease of reuse
+                PingResult = if ($Ping.StatusCode -eq $null) { "DNS name not found" } else { $Win32PingStatusCodes[[int]$Ping.StatusCode] }
+                PingTime = $Ping.ResponseTime
+            })
+        }
     }
 }
 
@@ -46,36 +48,21 @@ function Test-MfPcConnection {
 # This version uses nbtstat.exe and parses the text output; unsure if it works via IPv6
 filter Get-MfPcNbtStat {
     process {
+        $NbtstatName = $null
         if ($_.PingStatusCode -eq 0) {
-            $NbtstatName = (
-                & nbtstat -a $_.ComputerName |
-                Select-String "<00>  UNIQUE" |
-                Select-Object -First 1
-            ).ToString().Split('<')[0].Trim()
-
-        } else {
-            $NbtstatName = $null
+            try {
+                $NbtstatName = (
+                    & nbtstat -a $_.ComputerName |
+                    Select-String "<00>  UNIQUE" |
+                    Select-Object -First 1
+                ).ToString().Split('<')[0].Trim()
+            }
+            catch {
+                $NbtstatName = "Error: " + $PSItem[0].Exception.Message
+            }
+            finally {}
         }
         $_ | Add-Member -MemberType NoteProperty -Name "NetBiosName" -Value $NbtstatName
-        Write-Output $_
-    }
-}
-
-# Pipe the results of Test-MfPcConnection into this to get name from target to ensure it's the machine you want
-# This version I'm attempting to use CIM classes, but this may not turn out to be sensible because
-#   if the name doesn't match, the CIM session probably will fail, anyway
-filter Get-MfPcNbtName {
-    process {
-        if ($_.PingStatusCode -eq 0) {
-            $CimSystem = Get-CimInstance -ClassName CIM_System -ComputerName $_.ComputerName
-        } else {
-            $CimSystem = $null
-        }
-        $_ | Add-Member -MemberType NoteProperty -Name "NetBiosName" -Value $CimSystem.Name
-        $_ | Add-Member -MemberType NoteProperty -Name "AdDomain" -Value $CimSystem.Domain
-        $_ | Add-Member -MemberType NoteProperty -Name "Memory" -Value $CimSystem.TotalPhysicalMemory
-        $_ | Add-Member -MemberType NoteProperty -Name "Model" -Value $CimSystem.Model
-        $_ | Add-Member -MemberType NoteProperty -Name "Manufacturer" -Value $CimSystem.Manufacturer
         Write-Output $_
     }
 }

@@ -29,16 +29,18 @@ function Test-MfPcConnection {
         [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
         [string[]]$ComputerName
     )
-    $ComputerName | ForEach-Object {
-        $Ping = Get-CimInstance -ClassName Win32_PingStatus -Filter "Address='$_'"
-        New-Object psobject -Property ([ordered]@{
-            ComputerName = $_
-            IpAddress = $Ping.ProtocolAddress
-            PingStatusCode = [int]$Ping.StatusCode
-            # NOTE: .StatusCode is [uint32], so casting it to [int] above and below for ease of reuse
-            PingResult = if ($Ping.StatusCode -eq $null) { "DNS name not found" } else { $Win32PingStatusCodes[[int]$Ping.StatusCode] }
-            PingTime = $Ping.ResponseTime
-        })
+process {
+        $ComputerName | ForEach-Object {
+            $Ping = Get-CimInstance -ClassName Win32_PingStatus -Filter "Address='$_'"
+            New-Object psobject -Property ([ordered]@{
+                ComputerName = $_
+                IpAddress = $Ping.ProtocolAddress
+                PingStatusCode = [int]$Ping.StatusCode
+                # NOTE: .StatusCode is [uint32], so casting it to [int] above and below for ease of reuse
+                PingResult = if ($Ping.StatusCode -eq $null) { "DNS name not found" } else { $Win32PingStatusCodes[[int]$Ping.StatusCode] }
+                PingTime = $Ping.ResponseTime
+            })
+        }
     }
 }
 
@@ -46,15 +48,19 @@ function Test-MfPcConnection {
 # This version uses nbtstat.exe and parses the text output; unsure if it works via IPv6
 filter Get-MfPcNbtStat {
     process {
+        $NbtstatName = $null
         if ($_.PingStatusCode -eq 0) {
-            $NbtstatName = (
-                & nbtstat -a $_.ComputerName |
-                Select-String "<00>  UNIQUE" |
-                Select-Object -First 1
-            ).ToString().Split('<')[0].Trim()
-
-        } else {
-            $NbtstatName = $null
+            try {
+                $NbtstatName = (
+                    & nbtstat -a $_.ComputerName |
+                    Select-String "<00>  UNIQUE" |
+                    Select-Object -First 1
+                ).ToString().Split('<')[0].Trim()
+            }
+            catch {
+                $NbtstatName = "Error: " + $PSItem[0].Exception.Message
+            }
+            finally {}
         }
         $_ | Add-Member -MemberType NoteProperty -Name "NetBiosName" -Value $NbtstatName
         Write-Output $_

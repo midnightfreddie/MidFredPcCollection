@@ -1,0 +1,6 @@
+"ComputerName","IpAddress","PingStatusCode","PingResult","PingTime","NetBiosName"
+"molehill","2001:470:b967:1::20","0","Success","1","Error: You cannot call a method on a null-valued expression."
+"lenny","2001:470:b967:1:cc26:397a:5a5b:bce8","0","Success","0","Error: You cannot call a method on a null-valued expression."
+"winvr","2001:470:b967:1:ade7:acba:c1a3:fed9","0","Success","0","Error: You cannot call a method on a null-valued expression."
+"crookshanks","fe80::dc8b:eba3:720d:5ce9","0","Success","0","CROOKSHANKS"
+"nopcbythisname","","0","DNS name not found",,"Error: You cannot call a method on a null-valued expression."
